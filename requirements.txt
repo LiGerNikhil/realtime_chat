@@ -1,3 +1,4 @@
+daphne
 Django
 pillow
 django-cleanup
