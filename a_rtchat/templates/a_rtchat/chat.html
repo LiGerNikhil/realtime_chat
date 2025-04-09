@@ -1,44 +1,1237 @@
-{%extends 'layouts/blank.html' %}
+{% extends 'layouts/blank.html' %}
 
 {% block content %}
+<div class="background">
+    <!-- Background elements -->
+    <div class="background-pattern"></div>
+    <div class="light-blur-1"></div>
+    <div class="light-blur-2"></div>
+</div>
 
-<wrapper class="block max-w-2xl mx-auto my-10 px-6">
-    <div id="chat_window" class="h-[45rem] flex flex-col bg-gray-800 rounded-2xl shadow-2xl relative p-1">
-        <div class="flex justify-center text-emerald-400 bg-gray-800 p-2 sticky top-0 z-10">
-            <div id="online-icon"></div>
-            <span id="online-count" class="pr-1"></span>online
+<div class="fullscreen-chat">
+    <!-- Group Header Section -->
+    {% if chat_group.groupchat_name %}
+    <h2 style="margin-bottom: 2.5rem; font-size: 1.25rem; line-height: 1.75rem; font-weight: 700;">
+        {{ chat_group.groupchat_name }}
+    </h2>
+    
+    <div class="group-header">
+        <div class="group-header-top">
+            <h2>{{ chat_group.groupchat_name }}</h2>
+            {% if user == chat_group.admin %}
+                <a href="{% url 'edit-chatroom' chat_group.group_name %}" class="edit-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                </a>
+            {% endif %}
         </div>
-        <div id='chat_container' class="overflow-y-auto grow">
-            <ul id='chat_messages' class="flex flex-col justify-end gap-2 p-4">
+        <div class="group-header-bottom">
+            <span class="members-count">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                </svg>
+                {{ chat_group.members.count }} member{{ chat_group.members.count|pluralize }}
+            </span>
+            {% if chat_group.description %}
+                <span class="group-description">{{ chat_group.description }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Search Box -->
+    <div class="search-container">
+        <input type="text" id="message-search" placeholder="Search messages...">
+    </div>
+
+    <!-- Main Chat Window -->
+    <div id="chat_window" class="chat-window">
+        <!-- Chat Header -->
+        <div class="chat-header">
+            {% if other_user %}
+                <!-- 1-on-1 Chat Header -->
+                <div class="recipient-header">
+                    <div id="online-icon" class="status-indicator offline"></div>
+                    <a href="{% url 'profile' other_user.username %}" class="user-profile-link">
+                        <img class="user-avatar" src="{{ other_user.profile.avatar }}" 
+                             onerror="this.src='https://ui-avatars.com/api/?name={{ other_user.profile.name|urlencode }}&background=random&size=128'"/>
+                        <div class="user-info">
+                            <span class="user-name">{{ other_user.profile.name }}</span> 
+                            <span class="user-username">@{{ other_user.username }}</span>
+                        </div>
+                    </a>
+                </div>
+            
+            {% elif chat_group.groupchat_name %}
+                <!-- Group Chat Members -->
+                <div class="group-members-section">
+                    <div class="group-members-header">
+                        <h3>Group Members</h3>
+                        <span>{{ chat_group.members.count }} member{{ chat_group.members.count|pluralize }}</span>
+                    </div>
+                    <div class="group-members-horizontal">
+                        <ul class="members-list">
+                            {% for member in chat_group.members.all %}
+                            <li>
+                                <a href="{% url 'profile' member.username %}" class="member-link" title="{{ member.profile.name }}">
+                                    <div class="member-avatar-container">
+                                        <img 
+                                            src="{{ member.profile.avatar }}" 
+                                            class="member-avatar"
+                                            alt="{{ member.profile.name }}"
+                                            onerror="this.src='https://ui-avatars.com/api/?name={{ member.profile.name|urlencode }}&background=random&size=128'"
+                                        />
+                                        {% if member == chat_group.admin %}
+                                            <span class="admin-badge">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                </svg>
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="member-name">
+                                        {{ member.profile.name|truncatechars:10 }}
+                                    </span>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            {% else %}
+                <!-- General Chat Header -->
+                <div class="online-status">
+                    <div id="online-icon" class="status-indicator online"></div>
+                    <span id="online-count" class="online-count"></span>
+                    <span class="online-text">online</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Messages Container -->
+        <div id='chat_container' class="messages-container">
+            <ul id='chat_messages' class="messages-list">
                 {% for message in chat_messages reversed %}
-                {% include 'a_rtchat/chat_message.html' %}
+                    {% include 'a_rtchat/chat_message.html' %}
                 {% endfor %}
             </ul>
         </div>
-        <div class="sticky bottom-0 z-10 p-2 bg-gray-800">
-            <div class="flex items-center rounded-xl px-2 py-2">
-                <form id="chat_message_form"  class="w-full"
-                  hx-ext="ws"
-                  ws-connect="/ws/chatroom/public-chat"
-                  ws-send
-                  _="on htmx:wsAfterSend reset() me">
-                  {% csrf_token %} 
-                  {{ form }}
+
+        <!-- File Upload Form (Hidden by default) -->
+        <div id="file-upload-container" class="file-upload-container" style="display: none;">
+            <div class="file-upload-header">
+                <h4>Send File</h4>
+                <button id="close-file-upload" class="close-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+            <form id="chat_file_form" class="file-upload-form" enctype="multipart/form-data"
+                  hx-post="{% url 'chat-file-upload' chat_group.group_name %}"
+                  hx-target="#chat_messages"
+                  hx-swap="beforeend" 
+                  _="on htmx:beforeSend reset() me">
+                {% csrf_token %}
+                <div class="file-input-wrapper">
+                    <label for="id_file" class="file-input-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                        <span>Choose a file</span>
+                        <input type="file" name="file" id="id_file" class="file-input">
+                    </label>
+                    <div id="file-name-display" class="file-name-display">No file selected</div>
+                </div>
+                <button type="submit" class="file-upload-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                    Send File
+                </button>
+            </form>
+        </div>
+
+        <!-- Message Input -->
+        <div class="message-input-container">
+            <div class="input-wrapper">
+                <form id="chat_message_form" class="message-form"
+                    hx-ext="ws"
+                    ws-connect="/ws/chatroom/{{ chatroom_name }}"
+                    ws-send
+                    _="on htmx:wsAfterSend reset() me">
+                    {% csrf_token %}
+                    <div class="form-input">
+                        {{ form }}
+                    </div>
+                    <button type="button" class="file-button" id="file-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18.97 3.659a2.25 2.25 0 00-3.182 0l-10.94 10.94a3.75 3.75 0 105.304 5.303l7.693-7.693a.75.75 0 011.06 1.06l-7.693 7.693a5.25 5.25 0 11-7.424-7.424l10.939-10.94a3.75 3.75 0 115.303 5.304L9.097 18.835l-.008.008-.007.007-.002.002-.003.002A2.25 2.25 0 015.91 15.66l7.81-7.81a.75.75 0 011.061 1.06l-7.81 7.81a.75.75 0 001.054 1.068L18.97 6.84a2.25 2.25 0 000-3.182z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <button type="button" class="emoji-button" id="emoji-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/>
+                            <path d="M14.829 14.828a4.055 4.055 0 0 1-1.272.858 4.002 4.002 0 0 1-4.875-1.45l-1.658 1.119a6.063 6.063 0 0 0 1.621 1.62 5.963 5.963 0 0 0 2.148.903 6.042 6.042 0 0 0 2.415 0 5.972 5.972 0 0 0 2.148-.903c.313-.212.612-.458.886-.731.272-.271.52-.571.734-.889l-1.658-1.119a4.017 4.017 0 0 1-.489.592z"/>
+                            <circle cx="8.5" cy="10.5" r="1.5"/>
+                            <circle cx="15.5" cy="10.5" r="1.5"/>
+                        </svg>
+                    </button>
+                    <div id="emoji-picker" class="emoji-picker">
+                        <div class="emoji-category">
+                            <h4>Smileys & People</h4>
+                            <div class="emoji-grid">
+                                <span class="emoji" data-emoji="😀">😀</span>
+                                <span class="emoji" data-emoji="😃">😃</span>
+                                <span class="emoji" data-emoji="😄">😄</span>
+                                <span class="emoji" data-emoji="😁">😁</span>
+                                <span class="emoji" data-emoji="😆">😆</span>
+                                <span class="emoji" data-emoji="😅">😅</span>
+                                <span class="emoji" data-emoji="😂">😂</span>
+                                <span class="emoji" data-emoji="🤣">🤣</span>
+                                <span class="emoji" data-emoji="😊">😊</span>
+                                <span class="emoji" data-emoji="😇">😇</span>
+                                <span class="emoji" data-emoji="🙂">🙂</span>
+                                <span class="emoji" data-emoji="🙃">🙃</span>
+                                <span class="emoji" data-emoji="😉">😉</span>
+                                <span class="emoji" data-emoji="😌">😌</span>
+                                <span class="emoji" data-emoji="😍">😍</span>
+                                <span class="emoji" data-emoji="🥰">🥰</span>
+                                <span class="emoji" data-emoji="😘">😘</span>
+                                <span class="emoji" data-emoji="😗">😗</span>
+                                <span class="emoji" data-emoji="😙">😙</span>
+                                <span class="emoji" data-emoji="😚">😚</span>
+                                <span class="emoji" data-emoji="😋">😋</span>
+                                <span class="emoji" data-emoji="😛">😛</span>
+                                <span class="emoji" data-emoji="😝">😝</span>
+                                <span class="emoji" data-emoji="😜">😜</span>
+                                <span class="emoji" data-emoji="🤪">🤪</span>
+                                <span class="emoji" data-emoji="🤨">🤨</span>
+                                <span class="emoji" data-emoji="🧐">🧐</span>
+                                <span class="emoji" data-emoji="🤓">🤓</span>
+                                <span class="emoji" data-emoji="😎">😎</span>
+                                <span class="emoji" data-emoji="🤩">🤩</span>                                
+                                <span class="emoji" data-emoji="🥳">🥳</span>
+                                <span class="emoji" data-emoji="👍">👍</span>
+                                <span class="emoji" data-emoji="👎">👎</span>
+                                <span class="emoji" data-emoji="✌️">✌️</span>
+                                <span class="emoji" data-emoji="👏">👏</span>
+                                <span class="emoji" data-emoji="👌">👌</span>
+                                <span class="emoji" data-emoji="🤷‍♂️">🤷‍♂️</span>
+                                <span class="emoji" data-emoji="😏">😏</span>
+                                <span class="emoji" data-emoji="😈">😈</span>
+                                <span class="emoji" data-emoji="🔥">🔥</span>
+                                <span class="emoji" data-emoji="🍆">🍆</span>
+                                <span class="emoji" data-emoji="🤤">🤤</span>
+                                <span class="emoji" data-emoji="💋">💋</span>
+                            </div>
+                        </div>
+                        <div class="emoji-category">
+                            <h4>Animals & Nature</h4>
+                            <div class="emoji-grid">
+                                <span class="emoji" data-emoji="🐶">🐶</span>
+                                <span class="emoji" data-emoji="🐱">🐱</span>
+                                <span class="emoji" data-emoji="🐭">🐭</span>
+                                <span class="emoji" data-emoji="🐹">🐹</span>
+                                <span class="emoji" data-emoji="🐰">🐰</span>
+                                <span class="emoji" data-emoji="🦊">🦊</span>
+                                <span class="emoji" data-emoji="🐻">🐻</span>
+                                <span class="emoji" data-emoji="🐼">🐼</span>
+                                <span class="emoji" data-emoji="🦁">🦁</span>
+                                <span class="emoji" data-emoji="🐮">🐮</span>
+                                <span class="emoji" data-emoji="🐷">🐷</span>
+                                <span class="emoji" data-emoji="🐸">🐸</span>
+                                <span class="emoji" data-emoji="🐵">🐵</span>
+                                <span class="emoji" data-emoji="🙈">🙈</span>
+                                <span class="emoji" data-emoji="🙉">🙉</span>
+                                <span class="emoji" data-emoji="🙊">🙊</span>
+                                <span class="emoji" data-emoji="🐔">🐔</span>
+                                <span class="emoji" data-emoji="🐧">🐧</span>
+                                <span class="emoji" data-emoji="🐦">🐦</span>
+                                <span class="emoji" data-emoji="🐤">🐤</span>
+                                <span class="emoji" data-emoji="🦆">🦆</span>
+                                <span class="emoji" data-emoji="🦅">🦅</span>
+                                <span class="emoji" data-emoji="🦉">🦉</span>
+                                <span class="emoji" data-emoji="🦇">🦇</span>
+                            </div>
+                        </div>
+                        <div class="emoji-category">
+                            <h4>Food & Drink</h4>
+                            <div class="emoji-grid">
+                                <span class="emoji" data-emoji="🍏">🍏</span>
+                                <span class="emoji" data-emoji="🍎">🍎</span>
+                                <span class="emoji" data-emoji="🍐">🍐</span>
+                                <span class="emoji" data-emoji="🍊">🍊</span>
+                                <span class="emoji" data-emoji="🍋">🍋</span>
+                                <span class="emoji" data-emoji="🍌">🍌</span>
+                                <span class="emoji" data-emoji="🍉">🍉</span>
+                                <span class="emoji" data-emoji="🍇">🍇</span>
+                                <span class="emoji" data-emoji="🍓">🍓</span>
+                                <span class="emoji" data-emoji="🍈">🍈</span>
+                                <span class="emoji" data-emoji="🍒">🍒</span>
+                                <span class="emoji" data-emoji="🍑">🍑</span>
+                                <span class="emoji" data-emoji="🍍">🍍</span>
+                                <span class="emoji" data-emoji="🥭">🥭</span>
+                                <span class="emoji" data-emoji="🥥">🥥</span>
+                                <span class="emoji" data-emoji="🥝">🥝</span>
+                                <span class="emoji" data-emoji="🍅">🍅</span>
+                                <span class="emoji" data-emoji="🍆">🍆</span>
+                                <span class="emoji" data-emoji="🥑">🥑</span>
+                                <span class="emoji" data-emoji="🥦">🥦</span>
+                                <span class="emoji" data-emoji="🥬">🥬</span>
+                                <span class="emoji" data-emoji="🥒">🥒</span>
+                                <span class="emoji" data-emoji="🌶">🌶</span>
+                                <span class="emoji" data-emoji="🌽">🌽</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="send-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                    </button>
                 </form>
             </div>
         </div>
     </div>
-</wrapper>
+</div>
+{% if chat_group.members.exists %}
+<a href="{% url 'chatroom-leave' chat_group.group_name %}">
+    {% include 'a_rtchat/partials/modal_chat_leave.html' %}
+</a>
+{% endif %}
+<style>
+    /* Base Styles */
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        color: #333;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #f5f5f5;
+    }
 
-{% endblock %}
+    /* Light Background */
+    .background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: linear-gradient(135deg, #f9f9f9 0%, #e6e6e6 100%);
+    }
+
+    .background-pattern {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4AkEEjIZJb7x4QAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAANElEQVQ4y2NgGAXDADDCGP/+/fs/2o2jbhx146gbR9046sZRN446cNSNo24cdeOoG0fdOOrGUTcOZzcCABXeBq9kQZQ5AAAAAElFTkSuQmCC");
+        opacity: 0.05;
+    }
+
+    .light-blur-1 {
+        position: fixed;
+        top: -50px;
+        left: -50px;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(200, 200, 200, 0.4) 0%, transparent 70%);
+        filter: blur(60px);
+        z-index: -1;
+    }
+
+    .light-blur-2 {
+        position: fixed;
+        bottom: -100px;
+        right: -100px;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(180, 180, 180, 0.4) 0%, transparent 70%);
+        filter: blur(80px);
+        z-index: -1;
+    }
+
+    /* Fullscreen Chat Container */
+    .fullscreen-chat {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        width: 100vw;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* Group Header */
+    .group-header {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        padding: 11px;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        border-radius: 0;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .group-header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .group-header h2 {
+        /* margin: 0; */
+        /* font-size: 18px; */
+        /* font-weight: 500; */
+        /* margin-bottom: 2.5rem; */
+        color: #8e0fd7;
+        margin-bottom: 2.5rem;
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        font-weight: 700;
+    }
+
+    .edit-button {
+        color: rgba(51, 51, 51, 0.7);
+        text-decoration: none;
+        width: 20px;
+        height: 20px;
+    }
+
+    .edit-button:hover {
+        color: #000;
+    }
+
+    .group-header-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+    }
+
+    .members-count {
+        display: flex;
+        align-items: center;
+        color: rgba(51, 51, 51, 0.8);
+    }
+
+    .members-count svg {
+        width: 14px;
+        height: 14px;
+        margin-right: 5px;
+        color: #666;
+    }
+
+    .group-description {
+        color: rgba(51, 51, 51, 0.8);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
+    }
+
+    /* Search Box */
+    .search-container {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px 15px;
+        border-radius: 0;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    #message-search {
+        width: 100%;
+        padding: 10px 15px;
+        background: rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 20px;
+        font-size: 14px;
+        outline: none;
+        color: #333;
+    }
+
+    #message-search::placeholder {
+        color: rgba(51, 51, 51, 0.5);
+    }
+
+    /* Chat Window */
+    .chat-window {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        background: rgba(255, 255, 255, 0.8);
+        position: relative;
+        overflow: hidden;
+        border-radius: 0;
+    }
+
+    /* Chat Header */
+    .chat-header {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        padding: 0px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .recipient-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 20px;
+    }
+
+    /* Status Indicator */
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        position: relative;
+    }
+
+    .status-indicator.online {
+        background-color: #4ad504;
+        box-shadow: 0 0 10px #4ad504;
+    }
+
+    .status-indicator.offline {
+        background-color: #a8a8a8;
+    }
+
+    .user-profile-link {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        color: #333;
+        gap: 12px;
+    }
+
+    .user-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .user-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .user-name {
+        font-weight: 500;
+        font-size: 16px;
+        color: #333;
+    }
+
+    .user-username {
+        font-size: 12px;
+        opacity: 0.8;
+        color: #666;
+    }
+
+    /* Group Members Section */
+    .group-members-section {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 12px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .group-members-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 13px;
+    }
+
+    .group-members-header h3 {
+        margin: 0;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .group-members-header span {
+        color: #666;
+        font-size: 12px;
+    }
+
+    .members-list {
+        display: flex;
+        padding: 5px 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .members-list::-webkit-scrollbar {
+        display: none;
+    }
+
+    .members-list li {
+        flex-shrink: 0;
+        margin-right: 15px;
+    }
+
+    .member-link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        color: #333;
+    }
+
+    .member-avatar-container {
+        position: relative;
+    }
+
+    .member-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+    }
+
+    .member-link:hover .member-avatar {
+        border-color: #666;
+        transform: scale(1.05);
+    }
+
+    .admin-badge {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        background-color: #4a90e2;
+        color: white;
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #2a6fc9;
+        box-shadow: 0 0 6px rgba(74, 144, 226, 0.5);
+    }
+
+    .admin-badge svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    .member-name {
+        font-size: 11px;
+        margin-top: 5px;
+        color: #666;
+        max-width: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: center;
+    }
+
+    /* Online Status */
+    .online-status {
+        display: flex;
+        align-items: center;
+        font-size: 13px;
+    }
+
+    .online-count {
+        color: #4ad504;
+        margin-right: 3px;
+    }
+
+    .online-text {
+        color: #666;
+    }
+
+    /* Messages Container */
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+        background: 
+            radial-gradient(circle at top left, rgba(255, 255, 255, 0.5) 0%, transparent 30%),
+            radial-gradient(circle at bottom right, rgba(200, 200, 200, 0.3) 0%, transparent 30%);
+    }
+
+    .messages-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Message Styles */
+    .message {
+        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.4;
+        position: relative;
+        word-wrap: break-word;
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .message.sent {
+        background: rgba(74, 144, 226, 0.2);
+        border: 1px solid rgba(74, 144, 226, 0.3);
+        align-self: flex-end;
+        margin-left: auto;
+        border-top-right-radius: 0;
+        color: #333;
+    }
+
+    .message.received {
+        background: rgba(4, 15, 18, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        align-self: flex-start;
+        margin-right: auto;
+        border-top-left-radius: 0;
+        color: #333;
+    }
+
+    .message-info {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-top: 3px;
+        font-size: 11px;
+        color: rgba(51, 51, 51, 0.6);
+    }
+
+    .message-time {
+        margin-left: 5px;
+    }
+
+    .message-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .message-username {
+        font-weight: bold;
+        font-size: 12px;
+        margin-bottom: 3px;
+        color: #4a90e2;
+    }
+
+    /* File Upload Container */
+    .file-upload-container {
+        position: absolute;
+        bottom: 80px;
+        right: 20px;
+        width: 300px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        padding: 15px;
+        z-index: 100;
+    }
+
+    .file-upload-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .file-upload-header h4 {
+        margin: 0;
+        font-size: 16px;
+        color: #333;
+    }
+
+    .close-button {
+        background: transparent;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+
+    .close-button:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #333;
+    }
+
+    .close-button svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .file-upload-form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .file-input-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .file-input-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        padding: 20px;
+        border: 2px dashed rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: rgba(0, 0, 0, 0.02);
+    }
+
+    .file-input-label:hover {
+        border-color: #4a90e2;
+        background: rgba(74, 144, 226, 0.05);
+    }
+
+    .file-input-label svg {
+        width: 40px;
+        height: 40px;
+        color: #4a90e2;
+        margin-bottom: 10px;
+    }
+
+    .file-input-label span {
+        font-size: 14px;
+        color: #666;
+    }
+
+    .file-input {
+        display: none;
+    }
+
+    .file-name-display {
+        font-size: 13px;
+        color: #666;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-upload-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 15px;
+        background: #4a90e2;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .file-upload-button:hover {
+        background: #3a80d2;
+    }
+
+    .file-upload-button svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Message Input */
+    .message-input-container {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 12px;
+        position: sticky;
+        bottom: 0;
+        border-radius: 0;
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .input-wrapper {
+        display: flex;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 24px;
+        padding: 8px 16px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .message-form {
+        display: flex;
+        width: 100%;
+        align-items: center;
+    }
+
+    .form-input {
+        flex-grow: 1;
+        margin-right: 10px;
+    }
+
+    .form-input input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        padding: 8px 0;
+        font-size: 14px;
+        color: #333;
+    }
+
+    .form-input input::placeholder {
+        color: rgba(51, 51, 51, 0.5);
+    }
+
+    /* File Button Styles */
+    .file-button {
+        background: transparent;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        padding: 5px;
+        margin-right: 8px;
+        transition: transform 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .file-button:hover {
+        transform: scale(1.1);
+        color: #4a90e2;
+    }
+
+    .file-button svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* Emoji Button Styles */
+    .emoji-button {
+        background: transparent;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        padding: 5px;
+        margin-right: 8px;
+        transition: transform 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .emoji-button:hover {
+        transform: scale(1.1);
+        color: #4a90e2;
+    }
+
+    .emoji-button svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* Emoji Picker Styles */
+    .emoji-picker {
+        position: absolute;
+        bottom: 80px;
+        right: 20px;
+        width: 300px;
+        height: 350px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        padding: 10px;
+        z-index: 100;
+        display: none;
+        overflow-y: auto;
+    }
+
+    .emoji-picker.active {
+        display: block;
+    }
+
+    .emoji-category {
+        margin-bottom: 15px;
+    }
+
+    .emoji-category h4 {
+        color: #333;
+        margin: 0 0 8px 0;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .emoji-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 5px;
+    }
+
+    .emoji {
+        font-size: 24px;
+        cursor: pointer;
+        text-align: center;
+        padding: 3px;
+        border-radius: 5px;
+        transition: background-color 0.2s ease;
+    }
+
+    .emoji:hover {
+        background-color: rgba(74, 144, 226, 0.1);
+        transform: scale(1.1);
+    }
+
+    /* Send Button */
+    .send-button {
+        background: transparent;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        padding: 5px;
+        transition: transform 0.2s ease;
+    }
+
+    .send-button:hover {
+        transform: scale(1.1);
+        color: #4a90e2;
+    }
+
+    .send-button svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* Scrollbar Styling */
+    .messages-container::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+    }
+
+    .messages-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .emoji-picker::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .emoji-picker::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+    }
+
+    .emoji-picker::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    @media (max-width: 768px) {
+        .message {
+            max-width: 85%;
+            padding: 10px 14px;
+        }
+        
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+        }
+        
+        .input-wrapper {
+            padding: 6px 14px;
+        }
+
+        .emoji-picker,
+        .file-upload-container {
+            width: 280px;
+            right: 10px;
+        }
+
+        .emoji-picker {
+            height: 300px;
+            bottom: 70px;
+        }
+
+        .emoji-grid {
+            grid-template-columns: repeat(7, 1fr);
+        }
+    }
+</style>
 
 {% block javascript %}
 <script>
-
-    function scrollToBottom() {
+    // Auto-scroll function
+    function scrollToBottom(time=0) {
+       setTimeout(function(){
         const container = document.getElementById('chat_container');
         container.scrollTop = container.scrollHeight;
+
+       }, time); 
+        
     }
-    scrollToBottom()
+
+    // Initial scroll to bottom
+    scrollToBottom();
+
+    // Auto-scroll when new messages arrive
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target.id === 'chat_messages') {
+            scrollToBottom();
+        }
+    });
+
+    // Search functionality
+    document.getElementById('message-search').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const messages = document.querySelectorAll('#chat_messages li');
+
+        messages.forEach(function(message) {
+            const messageText = message.textContent.toLowerCase();
+            message.style.display = messageText.includes(searchTerm) ? '' : 'none';
+        });
+    });
+
+    // Emoji picker functionality
+    document.addEventListener('DOMContentLoaded', () => {
+        const emojiButton = document.getElementById('emoji-button');
+        const emojiPicker = document.getElementById('emoji-picker');
+        const messageInput = document.querySelector('.form-input input');
+        
+        if (emojiButton && emojiPicker) {
+            // Toggle emoji picker
+            emojiButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                emojiPicker.classList.toggle('active');
+            });
+
+            // Handle emoji selection
+            document.querySelectorAll('.emoji').forEach(emoji => {
+                emoji.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (messageInput) {
+                        messageInput.value += emoji.getAttribute('data-emoji');
+                        messageInput.focus();
+                    }
+                });
+            });
+
+            // Close picker when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!emojiPicker.contains(e.target) && e.target !== emojiButton) {
+                    emojiPicker.classList.remove('active');
+                }
+            });
+
+            // Add close button to emoji picker
+            const closeButton = document.createElement('button');
+            closeButton.innerHTML = '&times;';
+            closeButton.style.position = 'absolute';
+            closeButton.style.top = '5px';
+            closeButton.style.right = '5px';
+            closeButton.style.background = 'transparent';
+            closeButton.style.border = 'none';
+            closeButton.style.fontSize = '20px';
+            closeButton.style.cursor = 'pointer';
+            
+            closeButton.addEventListener('click', () => {
+                emojiPicker.classList.remove('active');
+            });
+            
+            emojiPicker.prepend(closeButton);
+        }
+    });
+
+    // File upload functionality
+    document.addEventListener('DOMContentLoaded', () => {
+        const fileButton = document.getElementById('file-button');
+        const fileUploadContainer = document.getElementById('file-upload-container');
+        const closeFileUpload = document.getElementById('close-file-upload');
+        const fileInput = document.getElementById('id_file');
+        const fileNameDisplay = document.getElementById('file-name-display');
+
+        if (fileButton && fileUploadContainer) {
+            // Toggle file upload container
+            fileButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                fileUploadContainer.style.display = 'block';
+            });
+
+            // Close file upload container
+            closeFileUpload.addEventListener('click', (e) => {
+                e.preventDefault();
+                fileUploadContainer.style.display = 'none';
+            });
+
+            // Close when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!fileUploadContainer.contains(e.target)) {
+                    fileUploadContainer.style.display = 'none';
+                }
+            });
+
+            // Update file name display when file is selected
+            if (fileInput && fileNameDisplay) {
+                fileInput.addEventListener('change', (e) => {
+                    if (fileInput.files.length > 0) {
+                        fileNameDisplay.textContent = fileInput.files[0].name;
+                    } else {
+                        fileNameDisplay.textContent = 'No file selected';
+                    }
+                });
+            }
+        }
+    });
+    
 </script>
+{% endblock %}
+
 {% endblock %}

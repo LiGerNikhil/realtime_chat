@@ -22,3 +22,5 @@ class Profile(models.Model):
         if self.image:
             return self.image.url
         return f'{settings.STATIC_URL}images/avatar.svg'
+    
+    

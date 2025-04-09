@@ -1,17 +1,73 @@
-<span id="online-count" hx-swap-oob ="outerHTML" class="fade-in-scale pr-1">
-    {{ online_count }}
-    <style>
-        @keyframes fadeInScale {
-            from {opacity: 0; transform: scale(4);}
-            to {opacity: 1; transform: scale(1);}
-        }
-        .fade-in-scale {
-            animation: fadeInScale 0.6 ease;
-        }
-    </style>
+<span id="online-count" hx-swap-oob="outerHTML" class="fade-in-scale pr-1">
+  {{ online_count }}
+  <style>
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(4);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    .fade-in-scale {
+      animation: fadeInScale 0.6 ease;
+    }
+  </style>
 </span>
 {% if online_count %}
-<div class="online-icon" class="absolute top-2 left-2 rounded-full bg-green-500 p-1.5"></div>
+<div class="online-icon" class="green-dot absolute top-2 left-2"></div>
 {% else %}
-<div class="online-icon" class="absolute top-2 left-2 rounded-full bg-gray-500 p-1.5"></div>
+<div class="online-icon" class="gray-dot top-2 left-2"></div>
 {% endif %}
+
+<!-- from chat.html  -->
+<div class="group-members-horizontal">
+  <ul 
+    id="groupchat-members"
+    class="flex flex-nowrap overflow-x-auto py-2 space-x-3 hide-scrollbar"
+    hx-get="{% url 'get_online_status' group_id=chat_group.id %}"
+    hx-trigger="every 10s"
+    hx-swap="innerHTML"
+  >
+    {% for member in chat_group.members.all %}
+    <li class="flex-shrink-0 relative">
+      <a href="{% url 'profile' member.username %}" class="flex flex-col items-center group">
+        <div class="relative">
+          <img
+            src="{{ member.profile.avatar }}"
+            class="w-10 h-10 rounded-full object-cover border-2 {% if member in chat_group.users_online.all %}border-green-500{% else %}border-gray-300{% endif %}"
+            alt="{{ member.profile.name }}"
+            onerror="this.src='https://ui-avatars.com/api/?name={{ member.profile.name|urlencode }}&background=random&size=128'"
+          />
+          {% if member in chat_group.users_online.all %}
+          <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
+          {% else %}
+          <span class="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 rounded-full border-2 border-white"></span>
+          {% endif %}
+        </div>
+        <span class="text-xs text-gray-500 mt-1 truncate w-16 text-center">
+          {{ member.profile.name|truncatechars:10 }}
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<style>
+  .group-members-horizontal {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+</style>

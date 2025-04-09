@@ -10,4 +10,7 @@ urlpatterns = [
     path('usernamechange/', profile_usernamechange, name="profile-usernamechange"),
     path('emailverify/', profile_emailverify, name="profile-emailverify"),
     path('delete/', profile_delete_view, name="profile-delete"),
+    path('@<str:username>/', profile_view, name="profile"),
+    path('profile/', profile_view, name='profile'),  # For current user
+    path('profile/<str:username>/', profile_view, name='profile'),
 ]

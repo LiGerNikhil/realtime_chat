@@ -1,0 +1,51 @@
+<div x-data="{ modal_open: false }">
+    <!-- Trigger Button (Add this if missing) -->
+    <button @click="modal_open = true" class="text-red-500 hover:text-red-700 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+        Leave Chatroom
+    </button>
+
+    <!-- Modal -->
+    <div x-show="modal_open" x-cloak
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto">
+        
+        <!-- Overlay -->
+        <div class="fixed inset-0 bg-gray-800 bg-opacity-80"></div>
+        
+        <!-- Modal Content -->
+        <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <div @click.away="modal_open = false"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100 scale-100"
+                 x-transition:leave-end="opacity-0 scale-95"
+                 class="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
+                
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Leave this chatroom?</h2>
+                <p class="text-gray-600 mb-6">You won't be able to access this chat unless you're re-invited.</p>
+                
+                <form action="{% url 'chatroom-leave' chat_group.group_name %}" method="post" class="flex justify-end space-x-3">
+                    {% csrf_token %}
+                    <button type="button" @click="modal_open = false" 
+                            class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition">
+                        Stay
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition">
+                        Leave Chat
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

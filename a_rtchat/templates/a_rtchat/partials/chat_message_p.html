@@ -1,14 +1,14 @@
 <div id = "chat_messages" hx-swap-oob="beforeend">
 
 <div class="fade-in-up">
-    {% include 'a_rtchat/chat_message.html' %}
+{% include 'a_rtchat/chat_message.html' %}
 </div>
 
 
 <style>
     @keyframes fadeInAndUp{
-        from {opacity: 0; transform: translateY(12px); }
-        to {opacity: 1; transform: translateY(0px);}
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0px); }
 
     }
 
@@ -17,5 +17,5 @@
     }
 </style>
 
-<script>scrollToBottom()</script>
+<script>scrollToBottom(100)</script>
 </div>
