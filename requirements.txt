@@ -9,3 +9,4 @@ django-environ
 django-cloudinary-storage
 cloudinary
 shortuuid
+dj-database-url
