@@ -5,3 +5,4 @@ channels
 django-cleanup
 django-allauth
 django-htmx
+django-environ
